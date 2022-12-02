@@ -16,8 +16,9 @@ Uses NodeJS FileSystem to manage and store data locally on the system. It is an 
 | :-------- | :------- | :------------------------- | :--------- |
 | `create` | `function` | Creates a table by passing in a string | bigdb.create("table_name") |
 | `write` | `function` | Writes json to a table | bigdb.write({ field: value }, "table_name") |
-| `read` | `function` | Reads from a table / **Setting true as the third function parameter means it will only return the first result** | bigdb.read({ username: 'person 1' }, "table_name");
-| `delete` | `function` | Deletes most relevant result from database **This will only delete one document at a time** | bigdb.delete({ username: 'person 1' }, "table_name"); 
+| `read` | `function` | Reads from a table / **Setting true as the third function parameter means it will only return the first result** | bigdb.read({ username: 'person 1' }, "table_name"); |
+| `delete` | `function` | Deletes most relevant result from database **This will only delete one document at a time** | bigdb.delete({ username: 'person 1' }, "table_name"); |
+| `update` | `function` | Updates most relevant result from database **This will only update one document at a time** | bigdb.update({ getUser: '123' }, { setUsername: 'user123' }, "table_name"); |
 
 
 
