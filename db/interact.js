@@ -1,7 +1,7 @@
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 
-exports.write = (json, table) => {
+exports.write = (json, table, options) => {
     const dbManager = require("./dbmanager.json");
     if (!dbManager[table]) return { error: `table '${table}' does not exist` };
     
@@ -24,7 +24,7 @@ exports.write = (json, table) => {
     const checkTable = fs.existsSync(filePath);
     if (!checkTable) return { error: `table '${table}' has no bucket '${currentFile}' does not exist` };
 
-    const customId = uuidv4();
+    const customId = options?.["maintainId"] || uuidv4();
     json._id = customId;
 
     const currentData = [...JSON.parse(fs.readFileSync(filePath)), json];
@@ -138,6 +138,20 @@ exports.delete = (fields, table) => {
     
     if (deleted === true) return { deleted, rows: 1 }
     return { deleted, rows: 0 }
+};
+
+exports.update = (getFields, update, table) => {
+    let result = this.read(getFields, table, true);
+    if (result?.error || !result) return { error: result?.error || "no results found" };
+    
+    const keys = Object.keys(update);
+    for (const key of keys) {
+        result[key] = update[key];
+    }
+    
+    result["updatedDocumentMSStamp"] = new Date().getTime();
+    this.delete({ _id: result._id }, table);
+    this.write(result, table, { maintainId: result._id });
 };
 
 module.exports;
