@@ -1,26 +1,48 @@
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 
-exports.write = (json, table, options) => {
+const staticUsagePath = "./bigdb";
+
+exports.create = (table) => {
+    const keyTableName = uuidv4();
+    const filePath = `${staticUsagePath}/data/${table}/${keyTableName}.json`;
+
+    const checkTable = fs.existsSync(`${staticUsagePath}/data/${table}/`);
+    if (checkTable) return { error: `table '${table}' already exists` };
+
+    const databaseHandler = require("./dbmanager.json");
+    databaseHandler[table] = {
+        currentFile: keyTableName,
+        currentFileEntries: 0,
+        allFiles: [keyTableName]
+    }
+
+    if (!fs.existsSync(`${staticUsagePath}/data/${table}/`)) fs.mkdirSync(`${staticUsagePath}/data/${table}/`);
+
+    fs.writeFileSync(`${staticUsagePath}/dbmanager.json`, JSON.stringify(databaseHandler));
+    fs.writeFileSync(filePath, JSON.stringify([]));
+}
+
+exports.insertOne = (json, db, table, options) => {
     const dbManager = require("./dbmanager.json");
     if (!dbManager[table]) return { error: `table '${table}' does not exist` };
     
     let { currentFile, allFiles, currentFileEntries } = dbManager[table];
-    if (currentFileEntries >= 500) {
+    if (currentFileEntries >= 5000) {
         const keyTableName = uuidv4();
         dbManager[table].currentFile = keyTableName;
         dbManager[table]["allFiles"] = [keyTableName, ...dbManager[table]["allFiles"]];
         dbManager[table]["currentFileEntries"] = 0;
 
-        fs.writeFileSync(`${__dirname}/dbmanager.json`, JSON.stringify(dbManager));
-        fs.writeFileSync(`${__dirname}/data/${table}/${keyTableName}.json`, JSON.stringify([]));
+        fs.writeFileSync(`${staticUsagePath}/dbmanager.json`, JSON.stringify(dbManager));
+        fs.writeFileSync(`${staticUsagePath}/data/${table}/${keyTableName}.json`, JSON.stringify([]));
        
         currentFile = keyTableName;
         allFiles = dbManager[table]["allFiles"];
         currentFileEntries = dbManager[table]["currentFileEntries"];
     }
 
-    const filePath = `${__dirname}/data/${table}/${currentFile}.json`;
+    const filePath = `${staticUsagePath}/data/${table}/${currentFile}.json`;
     const checkTable = fs.existsSync(filePath);
     if (!checkTable) return { error: `table '${table}' has no bucket '${currentFile}' does not exist` };
 
@@ -31,30 +53,10 @@ exports.write = (json, table, options) => {
     fs.writeFileSync(filePath, JSON.stringify(currentData));
 
     dbManager[table]["currentFileEntries"] = currentData.length;
-    fs.writeFileSync(`${__dirname}/dbmanager.json`, JSON.stringify(dbManager));
+    fs.writeFileSync(`${staticUsagePath}/dbmanager.json`, JSON.stringify(dbManager));
 };
 
-exports.create = (table) => {
-    const keyTableName = uuidv4();
-    const filePath = `${__dirname}/data/${table}/${keyTableName}.json`;
-
-    const checkTable = fs.existsSync(`${__dirname}/data/${table}/`);
-    if (checkTable) return { error: `table '${table}' already exists` };
-
-    const databaseHandler = require("./dbmanager.json");
-    databaseHandler[table] = {
-        currentFile: keyTableName,
-        currentFileEntries: 0,
-        allFiles: [keyTableName]
-    }
-
-    if (!fs.existsSync(`${__dirname}/data/${table}/`)) fs.mkdirSync(`${__dirname}/data/${table}/`);
-
-    fs.writeFileSync(`${__dirname}/dbmanager.json`, JSON.stringify(databaseHandler));
-    fs.writeFileSync(filePath, JSON.stringify([]));
-}
-
-exports.read = (fields, table, one) => {
+exports.findOne = (fields, db, table) => {
     const dbManager = require("./dbmanager.json");
     if (!dbManager[table]) return { error: `table '${table}' does not exist`};
 
@@ -62,7 +64,7 @@ exports.read = (fields, table, one) => {
     const returned = new Array();
 
     for (const setFile of allFiles) {
-        const filePath = `${__dirname}/data/${table}/${setFile}.json`;
+        const filePath = `${staticUsagePath}/data/${table}/${setFile}.json`;
         const checkTable = fs.existsSync(filePath);
         if (!checkTable) return { error: `table '${table}' does not exist` };
     
@@ -82,18 +84,79 @@ exports.read = (fields, table, one) => {
         }
     }
 
-    if (returned.length < 1) return undefined; 
-    if (one === true) return returned[0];
+    return returned[0];
+};
+
+exports.query = (fields, db, table) => {
+    const dbManager = require("./dbmanager.json");
+    if (!dbManager[table]) return { error: `table '${table}' does not exist`};
+
+    let { allFiles } = dbManager[table];
+    const returned = new Array();
+
+    for (const setFile of allFiles) {
+        const filePath = `${staticUsagePath}/data/${table}/${setFile}.json`;
+        const checkTable = fs.existsSync(filePath);
+        if (!checkTable) return { error: `table '${table}' does not exist` };
+    
+        const documents = JSON.parse(fs.readFileSync(filePath));
+    
+        for (const document of documents) {
+            let matched = 0;
+            const keys = Object.keys(fields);
+    
+            for (const key of keys) {
+                const value = fields[key];
+    
+                if (document[key] === value) matched++;
+            }
+    
+            if (matched == keys.length) returned.push(document);
+        }
+    }
+
     return returned;
 };
 
-exports.delete = (fields, table) => {
+exports.queryLimit = (fields, limit, db, table) => {
+    const dbManager = require("./dbmanager.json");
+    if (!dbManager[table]) return { error: `table '${table}' does not exist`};
+
+    let { allFiles } = dbManager[table];
+    const returned = new Array();
+
+    for (const setFile of allFiles) {
+        if (returned.length >= (limit || 100)) continue;
+
+        const filePath = `${staticUsagePath}/data/${table}/${setFile}.json`;
+        const checkTable = fs.existsSync(filePath);
+        if (!checkTable) return { error: `table '${table}' does not exist` };
+    
+        const documents = JSON.parse(fs.readFileSync(filePath));
+        for (const document of documents) {
+            let matched = 0;
+            const keys = Object.keys(fields);
+    
+            for (const key of keys) {
+                const value = fields[key];
+    
+                if (document[key] === value) matched++;
+            }
+    
+            if (matched == keys.length) returned.push(document);
+        }
+    }
+
+    return returned;
+};
+
+exports.deleteOne = (fields, db, table) => {
     const dbManager = require("./dbmanager.json");
 
     if (!dbManager[table]) return { error: `table '${table}' does not exist` };
     const { currentFile, currentFileEntries, allFiles } = dbManager[table];
 
-    const filePath = `${__dirname}/data/${table}/${currentFile}.json`;
+    const filePath = `${staticUsagePath}/data/${table}/${currentFile}.json`;
     let deleted = false;
 
     const checkTable = fs.existsSync(filePath);
@@ -103,7 +166,7 @@ exports.delete = (fields, table) => {
         if (deleted) continue;
         const toDelete = new Array();
 
-        const documents = require(`${__dirname}/data/${table}/${file}.json`);
+        const documents = require(`./data/${table}/${file}.json`);
         for (const document of documents) {
             if (deleted) continue;
 
@@ -121,17 +184,18 @@ exports.delete = (fields, table) => {
             }
         }
 
+        
         const newData = documents.filter(document => toDelete.includes(document._id) ? null : document);
 
         if (newData.length < 1 && dbManager[table]["allFiles"].length-1 > 0) {
             dbManager[table]["allFiles"] = dbManager[table]["allFiles"].filter(entry => entry === file ? null : entry);
             dbManager[table]["currentFile"] = dbManager[table]["allFiles"][0];
-            fs.unlinkSync(`${__dirname}/data/${table}/${file}.json`);
-            fs.writeFileSync(`${__dirname}/dbmanager.json`, JSON.stringify(dbManager));
+            fs.unlinkSync(`${staticUsagePath}/data/${table}/${file}.json`);
+            fs.writeFileSync(`${staticUsagePath}/dbmanager.json`, JSON.stringify(dbManager));
         } else {
             dbManager[table]["currentFileEntries"] = newData.length;
-            fs.writeFileSync(`${__dirname}/data/${table}/${file}.json`, JSON.stringify(newData));
-            fs.writeFileSync(`${__dirname}/dbmanager.json`, JSON.stringify(dbManager));
+            fs.writeFileSync(`${staticUsagePath}/data/${table}/${file}.json`, JSON.stringify(newData));
+            fs.writeFileSync(`${staticUsagePath}/dbmanager.json`, JSON.stringify(dbManager));
         }
     }
 
@@ -140,18 +204,18 @@ exports.delete = (fields, table) => {
     return { deleted, rows: 0 }
 };
 
-exports.update = (getFields, update, table) => {
-    let result = this.read(getFields, table, true);
+exports.updateOne = (getFields, update, db, table) => {
+    let result = exports.findOne(getFields, true, table);
     if (result?.error || !result) return { error: result?.error || "no results found" };
     
-    const keys = Object.keys(update);
+    const keys = Object.keys(update["$set"]);
     for (const key of keys) {
-        result[key] = update[key];
+        result[key] = update["$set"][key];
     }
     
     result["updatedDocumentMSStamp"] = new Date().getTime();
-    this.delete({ _id: result._id }, table);
-    this.write(result, table, { maintainId: result._id });
+    exports.deleteOne({ _id: result._id }, null, table);
+    exports.insertOne(result, null, table, { maintainId: result._id });
 };
 
 module.exports;
