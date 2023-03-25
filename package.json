@@ -1,16 +1,37 @@
 {
-  "name": "db",
+  "name": "localdb",
   "version": "1.0.0",
-  "description": "",
+  "description": "A local fs JSON database designed for hundreds of queries per second, easy to setup and held locally, no query limits or table size limits.",
   "main": "interact.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "fs": "^0.0.1-security",
     "uuid": "^9.0.0"
-  }
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mangoz1x/LocalDB.git"
+  },
+  "keywords": [
+    "database",
+    "localdb",
+    "mongodb",
+    "json-database",
+    "json",
+    "database",
+    "local",
+    "database",
+    "fs",
+    "database",
+    "filesystem-db"
+  ],
+  "author": "mangoz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mangoz1x/LocalDB/issues"
+  },
+  "homepage": "https://github.com/Mangoz1x/LocalDB#readme"
 }

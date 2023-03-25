@@ -1,7 +1,7 @@
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 
-const staticUsagePath = "./db";
+const staticUsagePath = `${__dirname}`;
 
 exports.createTable = (table) => {
     const keyTableName = uuidv4();
@@ -21,6 +21,8 @@ exports.createTable = (table) => {
 
     fs.writeFileSync(`${staticUsagePath}/db.json`, JSON.stringify(databaseHandler));
     fs.writeFileSync(filePath, JSON.stringify([]));
+
+    return { created: true, tables: 1, table_name: table };
 }
 
 exports.deleteTable = (table) => {
@@ -33,8 +35,9 @@ exports.deleteTable = (table) => {
 
     delete dbTable[table];
     fs.unlinkSync(filePath);
-
     fs.writeFileSync(`${staticUsagePath}/db.json`, JSON.stringify(dbTable));
+
+    return { deleted: true, rows_affected: 1 };
 }   
 
 exports.insertOne = (json, table, options) => {
@@ -68,6 +71,8 @@ exports.insertOne = (json, table, options) => {
 
     dbManager[table]["currentFileEntries"] = currentData.length;
     fs.writeFileSync(`${staticUsagePath}/db.json`, JSON.stringify(dbManager));
+
+    return { inserted: true, rows_affected: 1 };
 };
 
 exports.findOne = (fields, table) => {
@@ -98,7 +103,7 @@ exports.findOne = (fields, table) => {
         }
     }
 
-    return returned[0];
+    return returned[0] || null;
 };
 
 exports.query = (fields, table) => {
