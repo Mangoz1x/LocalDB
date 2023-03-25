@@ -1,5 +1,5 @@
 
-# JSON LocalDB
+# LocalDB
 Uses NodeJS FileSystem to manage and store data locally on the system. It is an extremely fast and reliable database. No network requests are made and everything is held locally. Each table will have buckets which can hold up to 500 documents 
 
 
